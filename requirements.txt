@@ -1,8 +1,9 @@
 fastapi
-sentence-transformers
 uvicorn
 sympy
 faiss-cpu
 numpy
 python-multipart
 pillow
+sentence-transformers[cpu]
+torch==2.2.2+cpu
