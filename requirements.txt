@@ -1,4 +1,5 @@
 fastapi
+sentence-transformers
 uvicorn
 sympy
 faiss-cpu
