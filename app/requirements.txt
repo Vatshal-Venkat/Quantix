@@ -6,3 +6,4 @@ numpy
 python-multipart
 pillow
 sentence-transformers
+sentence_transformers
