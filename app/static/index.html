@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Multimodal Math Mentor</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+  <h1>Multimodal Math Mentor</h1>
+
+  <!-- Input selector -->
+  <label for="inputType">Input Type:</label>
+  <select id="inputType">
+    <option value="text">Text</option>
+    <option value="image">Image</option>
+    <option value="audio">Audio</option>
+  </select>
+
+  <!-- Text input -->
+  <textarea id="textInput" placeholder="Type a math problem here..."></textarea>
+
+  <!-- File input -->
+  <input type="file" id="fileInput" style="display:none" />
+
+  <button onclick="parseInput()">Parse</button>
+
+  <hr />
+
+  <!-- Parsed preview -->
+  <h3>Parsed Problem</h3>
+  <pre id="parsedOutput"></pre>
+
+  <button onclick="solveProblem()">Solve</button>
+
+  <hr />
+
+  <!-- Final output -->
+  <h3>Solution</h3>
+  <pre id="solutionOutput"></pre>
+
+  <!-- Feedback -->
+  <button onclick="sendFeedback('correct')">✅ Correct</button>
+  <button onclick="sendFeedback('incorrect')">❌ Incorrect</button>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
