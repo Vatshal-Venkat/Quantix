@@ -5,3 +5,5 @@ faiss-cpu
 numpy
 python-multipart
 pillow
+sentence-transformers
+torch==2.2.2
