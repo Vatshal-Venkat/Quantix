@@ -1,7 +1,7 @@
 fastapi
 uvicorn
-sentence-transformers
-faiss-cpu
-pydantic
-python-multipart
 sympy
+faiss-cpu
+numpy
+python-multipart
+pillow
