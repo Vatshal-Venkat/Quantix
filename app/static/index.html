@@ -4,48 +4,81 @@
   <meta charset="UTF-8" />
   <title>Multimodal Math Mentor</title>
   <link rel="stylesheet" href="/static/style.css" />
+
+  <!-- MathJax -->
+  <script>
+    window.MathJax = {
+      tex: { inlineMath: [['$', '$'], ['\\(', '\\)']] }
+    };
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
 </head>
+
 <body>
+<div class="app">
 
-<h1>Multimodal Math Mentor</h1>
+  <header>
+    <h1>QUANTIX MATHEMATICIAN</h1>
+    <p>Symbolic reasoning engine for advanced mathematics</p>
+  </header>
 
-<label>Input Type:</label>
-<select id="inputType">
-  <option value="text">Text</option>
-  <option value="image">Image</option>
-  <option value="audio">Audio</option>
-</select>
+  <!-- INPUT -->
+  <div class="card">
+    <div class="controls">
+      <label>INPUT TYPE</label>
+      <select id="inputType">
+        <option value="text">Text</option>
+        <option value="image">Image</option>
+        <option value="audio">Audio</option>
+      </select>
+    </div>
 
-<textarea id="textInput" placeholder="Type a math problem..."></textarea>
-<input type="file" id="fileInput" style="display:none" />
+    <textarea id="textInput" placeholder="differentiate x^2*sin(x)"></textarea>
+    <input type="file" id="fileInput" style="display:none" />
 
-<br/>
-<button onclick="parseInput()">Parse</button>
-<button onclick="solveProblem()">Solve</button>
+    <div class="controls">
+      <button onclick="parseInput()">Parse</button>
+      <button onclick="solveProblem()" class="primary">Solve</button>
+    </div>
+  </div>
 
-<hr/>
+  <!-- PARSED -->
+  <div class="card">
+    <div class="section-title">Parsed Representation</div>
+    <pre id="parsedOutput"></pre>
+  </div>
 
-<h3>Parsed Problem</h3>
-<pre id="parsedOutput"></pre>
+  <!-- ANSWER -->
+  <div class="card">
+    <div class="section-title">Final Answer</div>
+    <div id="finalAnswer"></div>
+  </div>
 
-<hr/>
+  <!-- STEPS -->
+  <div class="card">
+    <div class="section-title">Reasoning Trace</div>
+    <ul id="steps"></ul>
+  </div>
 
-<h3>Final Answer</h3>
-<div id="finalAnswer"></div>
+  <!-- SOURCES -->
+  <div class="card">
+    <div class="section-title">Retrieved Knowledge</div>
+    <ul id="sources"></ul>
+  </div>
 
-<h3>Step-by-step Explanation</h3>
-<ul id="steps"></ul>
+  <!-- SYSTEM -->
+  <div class="card">
+    <div class="section-title">System Info</div>
+    <div id="systemInfo"></div>
+  </div>
 
-<h3>Sources Used</h3>
-<ul id="sources"></ul>
+  <!-- FEEDBACK -->
+  <div class="feedback">
+    <button onclick="sendFeedback('correct')">✔ Correct</button>
+    <button onclick="sendFeedback('incorrect')">✖ Incorrect</button>
+  </div>
 
-<h3>System Info</h3>
-<div id="systemInfo"></div>
-
-<hr/>
-
-<button onclick="sendFeedback('correct')">✅ Correct</button>
-<button onclick="sendFeedback('incorrect')">❌ Incorrect</button>
+</div>
 
 <script src="/static/app.js"></script>
 </body>

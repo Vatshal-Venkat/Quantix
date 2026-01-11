@@ -50,28 +50,16 @@ async function solveProblem() {
   const data = await res.json();
   solvedResult = data;
 
-  // ───── Final Answer (ROBUST) ─────
+  // ───── Final Answer (LaTeX + MathJax) ─────
   const finalAnswerEl = document.getElementById("finalAnswer");
+  finalAnswerEl.innerHTML = `$$${data.final_answer}$$`;
 
-  if (data.final_answer && data.final_answer.trim() !== "") {
-    finalAnswerEl.textContent = data.final_answer;
-  } else if (data.explanation) {
-    const line = data.explanation
-      .split("\n")
-      .find(l => l.toLowerCase().startsWith("final answer"));
-    finalAnswerEl.textContent = line
-      ? line.replace("Final Answer:", "").trim()
-      : "Answer generated. See explanation below.";
-  } else {
-    finalAnswerEl.textContent = "Answer generated.";
-  }
-
-  // ───── Steps ─────
+  // ───── Steps (LaTeX aware) ─────
   const stepsEl = document.getElementById("steps");
   stepsEl.innerHTML = "";
   (data.steps || []).forEach(step => {
     const li = document.createElement("li");
-    li.textContent = step;
+    li.innerHTML = step;
     stepsEl.appendChild(li);
   });
 
@@ -87,6 +75,11 @@ async function solveProblem() {
   // ───── System Info ─────
   document.getElementById("systemInfo").textContent =
     `Memory used: ${data.used_memory}`;
+
+  // Re-render MathJax
+  if (window.MathJax) {
+    MathJax.typesetPromise();
+  }
 }
 
 async function sendFeedback(type) {
