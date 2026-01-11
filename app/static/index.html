@@ -7,42 +7,46 @@
 </head>
 <body>
 
-  <h1>Multimodal Math Mentor</h1>
+<h1>Multimodal Math Mentor</h1>
 
-  <!-- Input selector -->
-  <label for="inputType">Input Type:</label>
-  <select id="inputType">
-    <option value="text">Text</option>
-    <option value="image">Image</option>
-    <option value="audio">Audio</option>
-  </select>
+<label>Input Type:</label>
+<select id="inputType">
+  <option value="text">Text</option>
+  <option value="image">Image</option>
+  <option value="audio">Audio</option>
+</select>
 
-  <!-- Text input -->
-  <textarea id="textInput" placeholder="Type a math problem here..."></textarea>
+<textarea id="textInput" placeholder="Type a math problem..."></textarea>
+<input type="file" id="fileInput" style="display:none" />
 
-  <!-- File input -->
-  <input type="file" id="fileInput" style="display:none" />
+<br/>
+<button onclick="parseInput()">Parse</button>
+<button onclick="solveProblem()">Solve</button>
 
-  <button onclick="parseInput()">Parse</button>
+<hr/>
 
-  <hr />
+<h3>Parsed Problem</h3>
+<pre id="parsedOutput"></pre>
 
-  <!-- Parsed preview -->
-  <h3>Parsed Problem</h3>
-  <pre id="parsedOutput"></pre>
+<hr/>
 
-  <button onclick="solveProblem()">Solve</button>
+<h3>Final Answer</h3>
+<div id="finalAnswer"></div>
 
-  <hr />
+<h3>Step-by-step Explanation</h3>
+<ul id="steps"></ul>
 
-  <!-- Final output -->
-  <h3>Solution</h3>
-  <pre id="solutionOutput"></pre>
+<h3>Sources Used</h3>
+<ul id="sources"></ul>
 
-  <!-- Feedback -->
-  <button onclick="sendFeedback('correct')">✅ Correct</button>
-  <button onclick="sendFeedback('incorrect')">❌ Incorrect</button>
+<h3>System Info</h3>
+<div id="systemInfo"></div>
 
-  <script src="/static/app.js"></script>
+<hr/>
+
+<button onclick="sendFeedback('correct')">✅ Correct</button>
+<button onclick="sendFeedback('incorrect')">❌ Incorrect</button>
+
+<script src="/static/app.js"></script>
 </body>
 </html>
