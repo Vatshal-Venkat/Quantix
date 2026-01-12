@@ -23,13 +23,19 @@ def parse_problem(raw_text: str) -> dict:
             subtopic = key
             break
 
-    variables = re.findall(r"[a-zA-Z]", text)
+    variables = sorted(set(re.findall(r"[a-zA-Z]", text)))
 
     return {
         "problem_text": text,
         "topic": topic,
         "subtopic": subtopic,
-        "variables": list(set(variables)),
+        "variables": variables,
         "constraints": [],
-        "needs_clarification": needs_clarification
+        "needs_clarification": needs_clarification,
+
+        # 👇 THIS IS IMPORTANT FOR FRONTEND
+        "parser_metadata": {
+            "confidence": "low" if needs_clarification else "high",
+            "auto_detected": topic != "unknown"
+        }
     }

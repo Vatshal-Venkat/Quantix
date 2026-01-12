@@ -133,6 +133,32 @@ button:hover {
 }
 
 /* ================================
+   COLLAPSIBLE PARSER
+================================ */
+details {
+  background: #020617;
+  border-radius: 14px;
+  border: 1px solid #1e293b;
+  padding: 14px 16px;
+}
+
+summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #38bdf8;
+  list-style: none;
+}
+
+summary::-webkit-details-marker {
+  display: none;
+}
+
+details[open] summary {
+  margin-bottom: 12px;
+}
+
+/* ================================
    PARSED JSON
 ================================ */
 pre {
