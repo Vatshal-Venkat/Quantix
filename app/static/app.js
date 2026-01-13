@@ -50,7 +50,7 @@ async function solveProblem() {
   const data = await res.json();
   solvedResult = data;
 
-  // ───── Final Answer (Plain Text) ─────
+  // ───── Final Answer (Text) ─────
   document.getElementById("answerText").textContent =
     data.final_answer?.text || "";
 
@@ -60,23 +60,21 @@ async function solveProblem() {
     ? `$$${data.final_answer.latex}$$`
     : "";
 
-  // ───── Steps ─────
-  const stepsEl = document.getElementById("steps");
-  stepsEl.innerHTML = "";
-  (data.steps || []).forEach(step => {
-    const li = document.createElement("li");
-    li.innerHTML = step;
-    stepsEl.appendChild(li);
-  });
+  // ───── Supporting Context ─────
+  const ctxEl = document.getElementById("supportingContext");
+  ctxEl.innerHTML = "";
 
-  // ───── Sources ─────
-  const sourcesEl = document.getElementById("sources");
-  sourcesEl.innerHTML = "";
-  (data.used_context || []).forEach(src => {
-    const li = document.createElement("li");
-    li.textContent = src;
-    sourcesEl.appendChild(li);
-  });
+  if (data.supporting_context) {
+    const title = document.createElement("h3");
+    title.textContent = data.supporting_context.title;
+    ctxEl.appendChild(title);
+
+    (data.supporting_context.paragraphs || []).forEach(p => {
+      const para = document.createElement("p");
+      para.textContent = p;
+      ctxEl.appendChild(para);
+    });
+  }
 
   // ───── System Info ─────
   document.getElementById("systemInfo").textContent =

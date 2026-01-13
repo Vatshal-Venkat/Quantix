@@ -62,18 +62,11 @@
     <!-- LEFT -->
     <div class="solver-primary">
 
-      <!-- ANSWER -->
+      <!-- FINAL ANSWER -->
       <div class="card">
         <div class="section-title">Final Result</div>
-
         <div id="answerText"></div>
         <div id="answerLatex"></div>
-      </div>
-
-      <!-- STEPS -->
-      <div class="card">
-        <div class="section-title">Symbolic Reasoning Trace</div>
-        <ul id="steps"></ul>
       </div>
 
     </div>
@@ -81,11 +74,7 @@
     <!-- RIGHT -->
     <div class="solver-secondary">
 
-      <div class="card">
-        <div class="section-title">Supporting Context (Optional)</div>
-        <ul id="sources"></ul>
-      </div>
-
+      <!-- EXECUTION METADATA -->
       <div class="card">
         <div class="section-title">Execution Metadata</div>
         <div id="systemInfo"></div>
@@ -93,6 +82,12 @@
 
     </div>
 
+  </div>
+
+  <!-- SUPPORTING CONTEXT (FULL WIDTH) -->
+  <div class="card">
+    <div class="section-title">Supporting Context</div>
+    <div id="supportingContext"></div>
   </div>
 
   <!-- FEEDBACK -->

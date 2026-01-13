@@ -26,10 +26,6 @@ def _parse_expr(expr_text: str):
 
 
 def _extract_rhs_expression(text: str):
-    """
-    Extract RHS after '='
-    Handles implicit multiplication safely.
-    """
     match = re.search(r"=\s*(.+)", text)
     if not match:
         raise ValueError("No '=' found in expression")
@@ -44,9 +40,13 @@ def _first_symbol(expr):
 
 
 def _answer(text: str, latex: str):
+    return {"text": text, "latex": latex}
+
+
+def _supporting_context(title: str, paragraphs: list[str]):
     return {
-        "text": text,
-        "latex": latex
+        "title": title,
+        "paragraphs": paragraphs
     }
 
 
@@ -55,20 +55,11 @@ def _answer(text: str, latex: str):
 # ─────────────────────────────────────────────
 
 def solve_problem(parsed_problem: dict, route: str) -> dict:
-    """
-    FULL SYMBOLIC MATH SOLVER (ROUTE-DRIVEN)
 
-    ✔ Deterministic SymPy
-    ✔ Multi-variable support
-    ✔ Plain text + LaTeX output
-    ✖ No automatic LLM fallback
-    """
-
-    # ───────────────── SAFE INPUT
     if not isinstance(parsed_problem, dict):
         return {
             "final_answer": _answer("Invalid input format.", ""),
-            "steps": [],
+            "supporting_context": None,
             "used_context": [],
             "used_memory": False,
             "parser": None,
@@ -80,7 +71,7 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
     if not problem_text:
         return {
             "final_answer": _answer("No problem provided.", ""),
-            "steps": [],
+            "supporting_context": None,
             "used_context": [],
             "used_memory": False,
             "parser": parsed_problem,
@@ -98,14 +89,13 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
     if memory_match:
         return {
             "final_answer": memory_match.get("final_answer"),
-            "steps": memory_match.get("solution_steps") or [],
+            "supporting_context": memory_match.get("supporting_context"),
             "used_context": ["memory"],
             "used_memory": True,
             "parser": parsed_problem,
             "used_llm_fallback": False
         }
 
-    # ───────────────── SYMBOLIC SOLVING
     try:
         # ───────── DERIVATIVE
         if route == "quant_derivative":
@@ -115,39 +105,43 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
 
             return {
                 "final_answer": _answer(str(result), sp.latex(result)),
-                "steps": [
-                    f"Differentiated with respect to {var}"
-                ],
+                "supporting_context": _supporting_context(
+                    "How the derivative was computed",
+                    [
+                        "The given expression is treated as a function of a single variable.",
+                        f"The derivative is taken with respect to {var}, holding other terms constant.",
+                        "Symbolic differentiation rules are applied and the result is simplified."
+                    ]
+                ),
                 "used_context": [],
                 "used_memory": False,
                 "parser": parsed_problem,
                 "used_llm_fallback": False
             }
 
-        # ───────── GRADIENT (FIXED UX)
+        # ───────── GRADIENT
         if route == "quant_gradient":
             expr = _extract_rhs_expression(text)
             vars_ = sorted(expr.free_symbols, key=lambda s: s.name)
-
             grad = [sp.simplify(sp.diff(expr, v)) for v in vars_]
 
-            # SINGLE VARIABLE → scalar derivative
             if len(grad) == 1:
                 return {
-                    "final_answer": _answer(
-                        str(grad[0]),
-                        sp.latex(grad[0])
+                    "final_answer": _answer(str(grad[0]), sp.latex(grad[0])),
+                    "supporting_context": _supporting_context(
+                        "How the derivative was computed",
+                        [
+                            "Only one variable is present in the function.",
+                            "The gradient reduces to a single partial derivative.",
+                            "The expression is differentiated symbolically."
+                        ]
                     ),
-                    "steps": [
-                        f"Computed derivative with respect to {vars_[0]}"
-                    ],
                     "used_context": [],
                     "used_memory": False,
                     "parser": parsed_problem,
                     "used_llm_fallback": False
                 }
 
-            # MULTI-VARIABLE → gradient vector
             grad_vec = sp.Matrix(grad)
 
             return {
@@ -155,9 +149,15 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
                     f"[{', '.join(map(str, grad))}]",
                     sp.latex(grad_vec)
                 ),
-                "steps": [
-                    f"Computed gradient with respect to {', '.join(map(str, vars_))}"
-                ],
+                "supporting_context": _supporting_context(
+                    "How the gradient was computed",
+                    [
+                        "The function is interpreted as a scalar field of multiple variables.",
+                        "The gradient is defined as the vector of partial derivatives with respect to each variable.",
+                        "Each partial derivative measures the rate of change along one coordinate direction.",
+                        "The resulting vector points in the direction of maximum increase of the function."
+                    ]
+                ),
                 "used_context": [],
                 "used_memory": False,
                 "parser": parsed_problem,
@@ -180,7 +180,14 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
 
             return {
                 "final_answer": _answer("Jacobian computed", sp.latex(J)),
-                "steps": ["Constructed Jacobian matrix"],
+                "supporting_context": _supporting_context(
+                    "How the Jacobian was constructed",
+                    [
+                        "Each function is treated as a component of a vector-valued function.",
+                        "Partial derivatives are computed with respect to each variable.",
+                        "These derivatives are arranged into a matrix form called the Jacobian."
+                    ]
+                ),
                 "used_context": [],
                 "used_memory": False,
                 "parser": parsed_problem,
@@ -195,28 +202,36 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
 
             return {
                 "final_answer": _answer("Hessian computed", sp.latex(H)),
-                "steps": ["Constructed Hessian matrix"],
+                "supporting_context": _supporting_context(
+                    "How the Hessian was constructed",
+                    [
+                        "Second-order partial derivatives are computed for all variable pairs.",
+                        "These derivatives capture curvature information of the function.",
+                        "They are assembled into a symmetric matrix known as the Hessian."
+                    ]
+                ),
                 "used_context": [],
                 "used_memory": False,
                 "parser": parsed_problem,
                 "used_llm_fallback": False
             }
 
-        # ───────── FALLBACK
         return {
             "final_answer": _answer("Unsupported symbolic operation.", ""),
-            "steps": [],
+            "supporting_context": None,
             "used_context": [],
             "used_memory": False,
             "parser": parsed_problem,
             "used_llm_fallback": False
         }
 
-    # ───────────────── HARD SAFE FAILURE
     except Exception as e:
         return {
             "final_answer": _answer("Symbolic solver failed.", ""),
-            "steps": [str(e)],
+            "supporting_context": _supporting_context(
+                "Why the solver failed",
+                [str(e)]
+            ),
             "used_context": [],
             "used_memory": False,
             "parser": parsed_problem,
