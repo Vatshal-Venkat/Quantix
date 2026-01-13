@@ -5,8 +5,12 @@ faiss-cpu
 numpy
 python-multipart
 pillow
-sentence-transformers
-sentence_transformers
+python-dotenv
+
+# ---- ML (CPU ONLY) ----
+torch==2.2.2
+sentence-transformers==2.7.0
+
+# ---- Gemini ----
 google-genai
 google-generativeai
-python-dotenv
