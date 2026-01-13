@@ -6,4 +6,7 @@ numpy
 python-multipart
 pillow
 sentence-transformers
-torch==2.2.2
+sentence_transformers
+google-genai
+google-generativeai
+python-dotenv
