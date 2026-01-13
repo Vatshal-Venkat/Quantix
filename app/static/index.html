@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Multimodal Math Mentor</title>
+  <title>Quantix Mathematician</title>
   <link rel="stylesheet" href="/static/style.css" />
 
   <!-- MathJax -->
@@ -19,13 +19,13 @@
 
   <header>
     <h1>QUANTIX MATHEMATICIAN</h1>
-    <p>Symbolic reasoning engine for advanced mathematics</p>
+    <p>Deterministic symbolic reasoning system for advanced mathematics</p>
   </header>
 
   <!-- INPUT -->
   <div class="card">
     <div class="controls">
-      <label>INPUT TYPE</label>
+      <label>INPUT MODALITY</label>
       <select id="inputType">
         <option value="text">Text</option>
         <option value="image">Image</option>
@@ -33,53 +33,72 @@
       </select>
     </div>
 
-    <textarea id="textInput" placeholder="differentiate x^2*sin(x)"></textarea>
+    <textarea
+      id="textInput"
+      placeholder="Example: differentiate x² · sin(x)"
+    ></textarea>
+
     <input type="file" id="fileInput" style="display:none" />
 
     <div class="controls">
-      <button onclick="parseInput()">Parse</button>
-      <button onclick="solveProblem()" class="primary">Solve</button>
+      <button onclick="parseInput()">Analyze Input</button>
+      <button onclick="solveProblem()" class="primary">Execute Solver</button>
     </div>
   </div>
 
-  <!-- PARSER (COLLAPSIBLE) -->
+  <!-- PARSER -->
   <div class="card">
-    <div class="section-title">Parsed Input (System Metadata)</div>
+    <div class="section-title">System Analysis (Parsed Input)</div>
 
     <details>
-      <summary>Show parsed representation</summary>
+      <summary>View parser output</summary>
       <pre id="parsedOutput"></pre>
     </details>
   </div>
 
-  <!-- ANSWER -->
-  <div class="card">
-    <div class="section-title">Final Answer</div>
-    <div id="finalAnswer"></div>
-  </div>
+  <!-- SOLVER GRID -->
+  <div class="solver-grid">
 
-  <!-- STEPS -->
-  <div class="card">
-    <div class="section-title">Reasoning Trace</div>
-    <ul id="steps"></ul>
-  </div>
+    <!-- LEFT: CORE MATH -->
+    <div class="solver-primary">
 
-  <!-- SOURCES -->
-  <div class="card">
-    <div class="section-title">Retrieved Knowledge</div>
-    <ul id="sources"></ul>
-  </div>
+      <!-- ANSWER -->
+      <div class="card">
+        <div class="section-title">Final Result</div>
+        <div id="finalAnswer"></div>
+      </div>
 
-  <!-- SYSTEM -->
-  <div class="card">
-    <div class="section-title">System Info</div>
-    <div id="systemInfo"></div>
+      <!-- STEPS -->
+      <div class="card">
+        <div class="section-title">Symbolic Reasoning Trace</div>
+        <ul id="steps"></ul>
+      </div>
+
+    </div>
+
+    <!-- RIGHT: AUXILIARY -->
+    <div class="solver-secondary">
+
+      <!-- SOURCES -->
+      <div class="card">
+        <div class="section-title">Supporting Context (Optional)</div>
+        <ul id="sources"></ul>
+      </div>
+
+      <!-- SYSTEM -->
+      <div class="card">
+        <div class="section-title">Execution Metadata</div>
+        <div id="systemInfo"></div>
+      </div>
+
+    </div>
+
   </div>
 
   <!-- FEEDBACK -->
   <div class="feedback">
-    <button onclick="sendFeedback('correct')">✔ Correct</button>
-    <button onclick="sendFeedback('incorrect')">✖ Incorrect</button>
+    <button onclick="sendFeedback('correct')">✔ Mark Correct</button>
+    <button onclick="sendFeedback('incorrect')">✖ Flag Issue</button>
   </div>
 
 </div>
