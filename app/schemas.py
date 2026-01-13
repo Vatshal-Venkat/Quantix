@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Any, Optional
+from typing import Any, Optional, Dict, List
 
 
 class ParseResponse(BaseModel):
@@ -9,10 +9,17 @@ class ParseResponse(BaseModel):
     needs_hitl: bool
 
 
+class AnswerSchema(BaseModel):
+    text: str
+    latex: str
+
+
 class SolveResponse(BaseModel):
-    solution: Any
+    final_answer: AnswerSchema
+    steps: List[str]
     explanation: str
-    verification: dict
+    used_context: List[str]
+    used_memory: bool
 
 
 class FeedbackRequest(BaseModel):

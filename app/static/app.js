@@ -50,11 +50,17 @@ async function solveProblem() {
   const data = await res.json();
   solvedResult = data;
 
-  // ───── Final Answer (LaTeX + MathJax) ─────
-  const finalAnswerEl = document.getElementById("finalAnswer");
-  finalAnswerEl.innerHTML = `$$${data.final_answer}$$`;
+  // ───── Final Answer (Plain Text) ─────
+  document.getElementById("answerText").textContent =
+    data.final_answer?.text || "";
 
-  // ───── Steps (LaTeX aware) ─────
+  // ───── Final Answer (LaTeX) ─────
+  const latexEl = document.getElementById("answerLatex");
+  latexEl.innerHTML = data.final_answer?.latex
+    ? `$$${data.final_answer.latex}$$`
+    : "";
+
+  // ───── Steps ─────
   const stepsEl = document.getElementById("steps");
   stepsEl.innerHTML = "";
   (data.steps || []).forEach(step => {
@@ -77,7 +83,7 @@ async function solveProblem() {
     `Memory used: ${data.used_memory}`;
 
   // Re-render MathJax
-  if (window.MathJax) {
+  if (window.MathJax && data.final_answer?.latex) {
     MathJax.typesetPromise();
   }
 }

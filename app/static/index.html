@@ -35,7 +35,7 @@
 
     <textarea
       id="textInput"
-      placeholder="Example: differentiate x² · sin(x)"
+      placeholder="Example: find the gradient of f(x,y) = x^2 + y^2"
     ></textarea>
 
     <input type="file" id="fileInput" style="display:none" />
@@ -59,13 +59,15 @@
   <!-- SOLVER GRID -->
   <div class="solver-grid">
 
-    <!-- LEFT: CORE MATH -->
+    <!-- LEFT -->
     <div class="solver-primary">
 
       <!-- ANSWER -->
       <div class="card">
         <div class="section-title">Final Result</div>
-        <div id="finalAnswer"></div>
+
+        <div id="answerText"></div>
+        <div id="answerLatex"></div>
       </div>
 
       <!-- STEPS -->
@@ -76,16 +78,14 @@
 
     </div>
 
-    <!-- RIGHT: AUXILIARY -->
+    <!-- RIGHT -->
     <div class="solver-secondary">
 
-      <!-- SOURCES -->
       <div class="card">
         <div class="section-title">Supporting Context (Optional)</div>
         <ul id="sources"></ul>
       </div>
 
-      <!-- SYSTEM -->
       <div class="card">
         <div class="section-title">Execution Metadata</div>
         <div id="systemInfo"></div>

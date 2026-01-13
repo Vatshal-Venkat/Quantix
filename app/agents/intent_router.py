@@ -1,13 +1,16 @@
 def route_intent(parsed_problem: dict) -> str:
-    topic = parsed_problem.get("topic")
+    operation = parsed_problem.get("operation")
 
-    if topic == "calculus":
-        return "calculus_derivative"
-    elif topic == "probability":
-        return "probability_basic"
-    elif topic == "linear_algebra":
-        return "linear_algebra_basic"
-    elif topic == "algebra":
-        return "algebra_basic"
-    else:
-        return "fallback_llm"
+    if operation == "gradient":
+        return "quant_gradient"
+
+    if operation == "derivative":
+        return "quant_derivative"
+
+    if operation == "jacobian":
+        return "quant_jacobian"
+
+    if operation == "hessian":
+        return "quant_hessian"
+
+    return "unsupported"

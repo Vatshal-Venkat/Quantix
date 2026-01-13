@@ -1,6 +1,6 @@
 from app.rag.retriever import retrieve_context
 from app.memory.similarity import find_similar_problem
-from app.agents.gemini_solver_agent import solve_with_gemini  # kept, but NOT auto-used
+from app.agents.gemini_solver_agent import solve_with_gemini  # kept, NOT auto-used
 
 import sympy as sp
 import re
@@ -12,8 +12,29 @@ from sympy.parsing.sympy_parser import (
 )
 
 # ─────────────────────────────────────────────
-# Utility helpers
+# Parsing utilities
 # ─────────────────────────────────────────────
+
+TRANSFORMATIONS = standard_transformations + (
+    implicit_multiplication_application,
+)
+
+
+def _parse_expr(expr_text: str):
+    expr_text = expr_text.replace("^", "**")
+    return parse_expr(expr_text, transformations=TRANSFORMATIONS)
+
+
+def _extract_rhs_expression(text: str):
+    """
+    Extract RHS after '='
+    Handles implicit multiplication safely.
+    """
+    match = re.search(r"=\s*(.+)", text)
+    if not match:
+        raise ValueError("No '=' found in expression")
+    return _parse_expr(match.group(1))
+
 
 def _first_symbol(expr):
     vars_ = sorted(expr.free_symbols, key=lambda s: s.name)
@@ -22,31 +43,11 @@ def _first_symbol(expr):
     return vars_[0]
 
 
-def _latex_steps(*lines):
-    return [line for line in lines if line]
-
-
-def _extract_rhs_expression(text: str):
-    """
-    Extract RHS of expression after '=' and
-    correctly handle implicit multiplication.
-
-    Example:
-    'find the gradient of f(x) = 3x^3 - 5x + 7'
-    → 3*x**3 - 5*x + 7
-    """
-    match = re.search(r"=\s*(.+)", text)
-    if not match:
-        raise ValueError("No '=' found in expression")
-
-    expr_text = match.group(1)
-    expr_text = expr_text.replace("^", "**")
-
-    transformations = standard_transformations + (
-        implicit_multiplication_application,
-    )
-
-    return parse_expr(expr_text, transformations=transformations)
+def _answer(text: str, latex: str):
+    return {
+        "text": text,
+        "latex": latex
+    }
 
 
 # ─────────────────────────────────────────────
@@ -55,18 +56,18 @@ def _extract_rhs_expression(text: str):
 
 def solve_problem(parsed_problem: dict, route: str) -> dict:
     """
-    FULL SYMBOLIC MATH SOLVER (QUANT-FIRST)
+    FULL SYMBOLIC MATH SOLVER (ROUTE-DRIVEN)
 
     ✔ Deterministic SymPy
+    ✔ Multi-variable support
+    ✔ Plain text + LaTeX output
     ✖ No automatic LLM fallback
     """
 
-    # ─────────────────────────────────────────────
-    # SAFE INPUT EXTRACTION
-    # ─────────────────────────────────────────────
+    # ───────────────── SAFE INPUT
     if not isinstance(parsed_problem, dict):
         return {
-            "final_answer": "Invalid input format.",
+            "final_answer": _answer("Invalid input format.", ""),
             "steps": [],
             "used_context": [],
             "used_memory": False,
@@ -78,7 +79,7 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
 
     if not problem_text:
         return {
-            "final_answer": "No problem provided.",
+            "final_answer": _answer("No problem provided.", ""),
             "steps": [],
             "used_context": [],
             "used_memory": False,
@@ -88,9 +89,7 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
 
     text = problem_text.lower()
 
-    # ─────────────────────────────────────────────
-    # MEMORY CHECK
-    # ─────────────────────────────────────────────
+    # ───────────────── MEMORY CHECK
     try:
         memory_match = find_similar_problem(problem_text)
     except Exception:
@@ -98,7 +97,7 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
 
     if memory_match:
         return {
-            "final_answer": memory_match.get("final_answer", "Memory-based solution"),
+            "final_answer": memory_match.get("final_answer"),
             "steps": memory_match.get("solution_steps") or [],
             "used_context": ["memory"],
             "used_memory": True,
@@ -106,79 +105,72 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
             "used_llm_fallback": False
         }
 
-    # ─────────────────────────────────────────────
-    # SYMBOLIC SOLVING (PRIMARY & ONLY PATH)
-    # ─────────────────────────────────────────────
+    # ───────────────── SYMBOLIC SOLVING
     try:
-        steps = []
-        final_answer = ""
-
-        # ───────── PARTIAL DERIVATIVE d/dx(f)
-        d_match = re.search(r"d/d([a-z])\((.*?)\)", text)
-        if d_match:
-            var_name, expr_text = d_match.groups()
-            x, y, z = sp.symbols("x y z")
-            var_map = {"x": x, "y": y, "z": z}
-
-            if var_name not in var_map:
-                raise ValueError("Unsupported differentiation variable")
-
-            var = var_map[var_name]
-
-            transformations = standard_transformations + (
-                implicit_multiplication_application,
-            )
-
-            expr = parse_expr(expr_text.replace("^", "**"), transformations=transformations)
-            result = sp.simplify(sp.diff(expr, var))
-
-            steps = _latex_steps(
-                f"Original expression: $${sp.latex(expr)}$$",
-                f"Differentiate w.r.t. $${sp.latex(var)}$$",
-                f"Result: $${sp.latex(result)}$$"
-            )
-            final_answer = sp.latex(result)
-
-        # ───────── STANDARD DERIVATIVE
-        elif any(k in text for k in ["differentiate", "derivative of", "find the derivative"]):
+        # ───────── DERIVATIVE
+        if route == "quant_derivative":
             expr = _extract_rhs_expression(text)
             var = _first_symbol(expr)
             result = sp.simplify(sp.diff(expr, var))
 
-            steps = _latex_steps(
-                f"Expression: $${sp.latex(expr)}$$",
-                f"Differentiate w.r.t. $${sp.latex(var)}$$",
-                f"Result: $${sp.latex(result)}$$"
-            )
-            final_answer = sp.latex(result)
+            return {
+                "final_answer": _answer(str(result), sp.latex(result)),
+                "steps": [
+                    f"Differentiated with respect to {var}"
+                ],
+                "used_context": [],
+                "used_memory": False,
+                "parser": parsed_problem,
+                "used_llm_fallback": False
+            }
 
-        # ───────── GRADIENT
-        elif "gradient" in text:
+        # ───────── GRADIENT (FIXED UX)
+        if route == "quant_gradient":
             expr = _extract_rhs_expression(text)
             vars_ = sorted(expr.free_symbols, key=lambda s: s.name)
 
-            grad = [sp.diff(expr, v) for v in vars_]
-            result = sp.Matrix(grad)
+            grad = [sp.simplify(sp.diff(expr, v)) for v in vars_]
 
-            steps = _latex_steps(
-                f"Function: $${sp.latex(expr)}$$",
-                f"Variables: $${', '.join(map(sp.latex, vars_))}$$",
-                f"Gradient: $${sp.latex(result)}$$"
-            )
-            final_answer = sp.latex(result)
+            # SINGLE VARIABLE → scalar derivative
+            if len(grad) == 1:
+                return {
+                    "final_answer": _answer(
+                        str(grad[0]),
+                        sp.latex(grad[0])
+                    ),
+                    "steps": [
+                        f"Computed derivative with respect to {vars_[0]}"
+                    ],
+                    "used_context": [],
+                    "used_memory": False,
+                    "parser": parsed_problem,
+                    "used_llm_fallback": False
+                }
+
+            # MULTI-VARIABLE → gradient vector
+            grad_vec = sp.Matrix(grad)
+
+            return {
+                "final_answer": _answer(
+                    f"[{', '.join(map(str, grad))}]",
+                    sp.latex(grad_vec)
+                ),
+                "steps": [
+                    f"Computed gradient with respect to {', '.join(map(str, vars_))}"
+                ],
+                "used_context": [],
+                "used_memory": False,
+                "parser": parsed_problem,
+                "used_llm_fallback": False
+            }
 
         # ───────── JACOBIAN
-        elif "jacobian" in text:
+        if route == "quant_jacobian":
             matches = re.findall(r"\[(.*?)\]", text)
             if not matches:
                 raise ValueError("Jacobian requires [f1, f2, ...] format")
 
-            funcs = [
-                parse_expr(f.strip().replace("^", "**"),
-                           transformations=standard_transformations + (implicit_multiplication_application,))
-                for f in matches[0].split(",")
-            ]
-
+            funcs = [_parse_expr(f.strip()) for f in matches[0].split(",")]
             vars_ = sorted(
                 set().union(*[f.free_symbols for f in funcs]),
                 key=lambda s: s.name
@@ -186,56 +178,44 @@ def solve_problem(parsed_problem: dict, route: str) -> dict:
 
             J = sp.Matrix(funcs).jacobian(vars_)
 
-            steps = _latex_steps(
-                f"Functions: $${sp.latex(sp.Matrix(funcs))}$$",
-                f"Variables: $${', '.join(map(sp.latex, vars_))}$$",
-                f"Jacobian: $${sp.latex(J)}$$"
-            )
-            final_answer = sp.latex(J)
+            return {
+                "final_answer": _answer("Jacobian computed", sp.latex(J)),
+                "steps": ["Constructed Jacobian matrix"],
+                "used_context": [],
+                "used_memory": False,
+                "parser": parsed_problem,
+                "used_llm_fallback": False
+            }
 
         # ───────── HESSIAN
-        elif "hessian" in text:
+        if route == "quant_hessian":
             expr = _extract_rhs_expression(text)
             vars_ = sorted(expr.free_symbols, key=lambda s: s.name)
-
             H = sp.hessian(expr, vars_)
 
-            steps = _latex_steps(
-                f"Function: $${sp.latex(expr)}$$",
-                f"Variables: $${', '.join(map(sp.latex, vars_))}$$",
-                f"Hessian: $${sp.latex(H)}$$"
-            )
-            final_answer = sp.latex(H)
+            return {
+                "final_answer": _answer("Hessian computed", sp.latex(H)),
+                "steps": ["Constructed Hessian matrix"],
+                "used_context": [],
+                "used_memory": False,
+                "parser": parsed_problem,
+                "used_llm_fallback": False
+            }
 
-        else:
-            raise ValueError("Unsupported symbolic operation")
-
-        # ─────────────────────────────────────────────
-        # CONTEXT RETRIEVAL
-        # ─────────────────────────────────────────────
-        try:
-            retrieved_context = retrieve_context(problem_text, top_k=3) or []
-            used_context = list(
-                {ctx.get("source") for ctx in retrieved_context if isinstance(ctx, dict)}
-            )
-        except Exception:
-            used_context = []
-
+        # ───────── FALLBACK
         return {
-            "final_answer": final_answer,
-            "steps": steps,
-            "used_context": used_context,
+            "final_answer": _answer("Unsupported symbolic operation.", ""),
+            "steps": [],
+            "used_context": [],
             "used_memory": False,
             "parser": parsed_problem,
             "used_llm_fallback": False
         }
 
-    # ─────────────────────────────────────────────
-    # HARD SAFE FAILURE (NO GEMINI)
-    # ─────────────────────────────────────────────
+    # ───────────────── HARD SAFE FAILURE
     except Exception as e:
         return {
-            "final_answer": "Symbolic solver failed.",
+            "final_answer": _answer("Symbolic solver failed.", ""),
             "steps": [str(e)],
             "used_context": [],
             "used_memory": False,
