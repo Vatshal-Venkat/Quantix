@@ -1,3 +1,5 @@
+# main.py (UPDATED)
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
@@ -9,8 +11,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
-
 import os
+import re
 
 from app.schemas import ParseResponse, FeedbackRequest
 from app.agents.parser_agent import parse_problem
@@ -48,7 +50,7 @@ def serve_ui():
 
 
 # ─────────────────────────────────────────────
-# Parse input
+# Parse input (FIXED)
 # ─────────────────────────────────────────────
 @app.post("/parse", response_model=ParseResponse)
 async def parse_input(
@@ -65,6 +67,11 @@ async def parse_input(
     else:
         raw_text = ""
 
+    # 🔥 CRITICAL FIX — normalize input
+    raw_text = raw_text.replace("\r", " ")
+    raw_text = raw_text.replace("\n", " ")
+    raw_text = re.sub(r"\s+", " ", raw_text).strip()
+
     confidence = assess_confidence(raw_text)
     parsed = parse_problem(raw_text)
     needs_hitl = hitl_required(confidence, parsed)
@@ -78,34 +85,20 @@ async def parse_input(
 
 
 # ─────────────────────────────────────────────
-# Solve (FINAL FIX)
+# Solve
 # ─────────────────────────────────────────────
 @app.post("/solve")
 async def solve(parsed_problem: dict = Body(...)):
     try:
         if not isinstance(parsed_problem, dict):
-            raise ValueError("Invalid request body: expected JSON object")
+            raise ValueError("Invalid request body")
 
-        route = route_intent(parsed_problem)
-        solution = solve_problem(parsed_problem, route)
+        solution = solve_problem(parsed_problem)
 
-        # 🔒 Gemini explainer is OPTIONAL
-        if os.getenv("GEMINI_API_KEY"):
-            explanation = explain_with_gemini(
-                parsed_problem.get("problem_text", ""),
-                solution.get("final_answer", ""),
-                solution.get("steps", [])
-            )
-        else:
-            explanation = "Explanation unavailable (Gemini not configured)."
-
-        return {
-            "final_answer": solution.get("final_answer", "Solution generated."),
-            "steps": solution.get("steps", []),
-            "explanation": explanation,
-            "used_context": solution.get("used_context", []),
-            "used_memory": solution.get("used_memory", False)
-        }
+        return JSONResponse(
+            status_code=200,
+            content=solution
+        )
 
     except Exception as e:
         return JSONResponse(
@@ -115,6 +108,7 @@ async def solve(parsed_problem: dict = Body(...)):
                 "details": str(e)
             }
         )
+
 
 
 # ─────────────────────────────────────────────

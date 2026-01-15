@@ -9,9 +9,19 @@ document.getElementById("inputType").addEventListener("change", (e) => {
     type !== "text" ? "block" : "none";
 });
 
+// ─────────────────────────────────────────────
+// PARSE INPUT
+// ─────────────────────────────────────────────
 async function parseInput() {
   const inputType = document.getElementById("inputType").value;
-  const text = document.getElementById("textInput").value;
+
+  const text = document
+    .getElementById("textInput")
+    .value
+    .replace(/\n+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
   const fileInput = document.getElementById("fileInput");
 
   const formData = new FormData();
@@ -27,7 +37,11 @@ async function parseInput() {
     formData.append("file", fileInput.files[0]);
   }
 
-  const res = await fetch("/parse", { method: "POST", body: formData });
+  const res = await fetch("/parse", {
+    method: "POST",
+    body: formData
+  });
+
   const data = await res.json();
 
   parsedProblem = data.parsed_problem;
@@ -35,6 +49,9 @@ async function parseInput() {
     JSON.stringify(parsedProblem, null, 2);
 }
 
+// ─────────────────────────────────────────────
+// SOLVE (MULTI-PROBLEM)
+// ─────────────────────────────────────────────
 async function solveProblem() {
   if (!parsedProblem) {
     alert("Parse first");
@@ -50,42 +67,71 @@ async function solveProblem() {
   const data = await res.json();
   solvedResult = data;
 
-  // ───── Final Answer (Text) ─────
-  document.getElementById("answerText").textContent =
-    data.final_answer?.text || "";
+  renderResults(data);
+}
 
-  // ───── Final Answer (LaTeX) ─────
+// ─────────────────────────────────────────────
+// RENDER RESULTS (MULTI)
+// ─────────────────────────────────────────────
+function renderResults(data) {
+  const answerTextEl = document.getElementById("answerText");
   const latexEl = document.getElementById("answerLatex");
-  latexEl.innerHTML = data.final_answer?.latex
-    ? `$$${data.final_answer.latex}$$`
-    : "";
-
-  // ───── Supporting Context ─────
   const ctxEl = document.getElementById("supportingContext");
+  const sysInfoEl = document.getElementById("systemInfo");
+
+  // Reset
+  answerTextEl.innerHTML = "";
+  latexEl.innerHTML = "";
   ctxEl.innerHTML = "";
+  sysInfoEl.textContent = "";
 
-  if (data.supporting_context) {
-    const title = document.createElement("h3");
-    title.textContent = data.supporting_context.title;
-    ctxEl.appendChild(title);
-
-    (data.supporting_context.paragraphs || []).forEach(p => {
-      const para = document.createElement("p");
-      para.textContent = p;
-      ctxEl.appendChild(para);
-    });
+  if (!data.results || data.results.length === 0) {
+    answerTextEl.textContent = "No results returned.";
+    return;
   }
 
-  // ───── System Info ─────
-  document.getElementById("systemInfo").textContent =
-    `Memory used: ${data.used_memory}`;
+  sysInfoEl.textContent = `Total problems solved: ${data.total_problems}`;
+
+  data.results.forEach((item, index) => {
+    // ───── Result Block
+    const block = document.createElement("div");
+    block.className = "result-block";
+
+    // Question
+    const q = document.createElement("p");
+    q.innerHTML = `<strong>Q${index + 1}:</strong> ${item.question}`;
+    block.appendChild(q);
+
+    // Answer (Text)
+    const a = document.createElement("p");
+    a.innerHTML = `<strong>Answer:</strong> ${item.final_answer.text}`;
+    block.appendChild(a);
+
+    // Answer (LaTeX)
+    if (item.final_answer.latex) {
+      const latexDiv = document.createElement("div");
+      latexDiv.innerHTML = `$$${item.final_answer.latex}$$`;
+      block.appendChild(latexDiv);
+    }
+
+    // Source
+    const src = document.createElement("p");
+    src.className = "source";
+    src.textContent = `Source: ${item.source}`;
+    block.appendChild(src);
+
+    ctxEl.appendChild(block);
+  });
 
   // Re-render MathJax
-  if (window.MathJax && data.final_answer?.latex) {
+  if (window.MathJax) {
     MathJax.typesetPromise();
   }
 }
 
+// ─────────────────────────────────────────────
+// FEEDBACK
+// ─────────────────────────────────────────────
 async function sendFeedback(type) {
   if (!parsedProblem || !solvedResult) {
     alert("Nothing to submit");

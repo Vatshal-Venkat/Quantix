@@ -1,5 +1,5 @@
-def route_intent(parsed_problem: dict) -> str:
-    operation = parsed_problem.get("operation")
+def route_intent(parsed_subproblem: dict) -> str:
+    operation = parsed_subproblem.get("operation")
 
     if operation == "gradient":
         return "quant_gradient"
@@ -12,5 +12,11 @@ def route_intent(parsed_problem: dict) -> str:
 
     if operation == "hessian":
         return "quant_hessian"
+
+    if operation == "optimization":
+        return "quant_optimization"
+
+    if operation == "system":
+        return "quant_system"
 
     return "unsupported"
