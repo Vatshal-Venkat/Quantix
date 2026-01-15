@@ -42,12 +42,6 @@ def _answer(text: str, latex: str = ""):
     return {"text": text, "latex": latex}
 
 
-def _extract_doc_answer(results: list[dict]) -> str:
-    if not results:
-        return None
-    return results[0].get("answer") or results[0].get("content")
-
-
 # ─────────────────────────────────────────────
 # SOLVE A SINGLE SUB-PROBLEM
 # ─────────────────────────────────────────────
@@ -56,20 +50,30 @@ def _solve_single(subproblem: dict) -> dict:
     problem_text = subproblem["problem_text"]
     route = subproblem.get("route")
 
-    # 1️⃣ DOC FIRST
+    # ==========================================================
+    # 1️⃣ KNOWLEDGE BASE (ANSWER + EXPLANATION)
+    # ==========================================================
     try:
         kb_results = retrieve_context(problem_text)
     except Exception:
         kb_results = []
 
     if kb_results:
+        top = kb_results[0]
+
         return {
             "question": problem_text,
-            "final_answer": _answer(_extract_doc_answer(kb_results)),
-            "source": "knowledge_base"
+            "final_answer": _answer(top.get("answer") or "Answer not found"),
+            "explanation": top.get("explanation"),
+            "source": {
+                "answer": top.get("KB"),
+                "explanation": top.get("source")
+            }
         }
 
-    # 2️⃣ MEMORY
+    # ==========================================================
+    # 2️⃣ MEMORY STORE
+    # ==========================================================
     try:
         memory_match = find_similar_problem(problem_text)
     except Exception:
@@ -79,12 +83,18 @@ def _solve_single(subproblem: dict) -> dict:
         return {
             "question": problem_text,
             "final_answer": memory_match.get("final_answer"),
-            "source": "memory"
+            "explanation": memory_match.get("supporting_context"),
+            "source": {
+                "answer": "memory",
+                "explanation": "memory"
+            }
         }
 
     text = problem_text.lower()
 
+    # ==========================================================
     # 3️⃣ SYMBOLIC SOLVERS
+    # ==========================================================
     try:
         # ───────── DERIVATIVE
         if route == "quant_derivative":
@@ -92,7 +102,6 @@ def _solve_single(subproblem: dict) -> dict:
             var = _first_symbol(expr)
             d = sp.diff(expr, var)
 
-            # Evaluate at a point if asked
             m = re.search(r"\((\-?\d+)\)", text)
             if m:
                 d = d.subs(var, int(m.group(1)))
@@ -100,12 +109,22 @@ def _solve_single(subproblem: dict) -> dict:
             return {
                 "question": problem_text,
                 "final_answer": _answer(str(d), sp.latex(d)),
-                "source": "symbolic"
+                "explanation": (
+                    "Differentiate the given function symbolically with respect "
+                    f"to {var}. If a value is specified, substitute it after differentiation."
+                ),
+                "source": {
+                    "answer": "symbolic_solver",
+                    "explanation": "symbolic_solver"
+                }
             }
 
         # ───────── SYSTEM OF EQUATIONS
         if route == "quant_system":
-            eqs = re.findall(r"([a-zA-Z0-9+\-*/ ]+=+[a-zA-Z0-9+\-*/ ]+)", problem_text)
+            eqs = re.findall(
+                r"([a-zA-Z0-9+\-*/ ]+=+[a-zA-Z0-9+\-*/ ]+)",
+                problem_text
+            )
             sym_eqs = [sp.Eq(*map(_parse_expr, e.split("="))) for e in eqs]
             vars_ = sorted(
                 set().union(*[e.free_symbols for e in sym_eqs]),
@@ -116,7 +135,14 @@ def _solve_single(subproblem: dict) -> dict:
             return {
                 "question": problem_text,
                 "final_answer": _answer(str(sol)),
-                "source": "symbolic"
+                "explanation": (
+                    "The system of equations is converted into symbolic form. "
+                    "Common variables are identified and solved simultaneously."
+                ),
+                "source": {
+                    "answer": "symbolic_solver",
+                    "explanation": "symbolic_solver"
+                }
             }
 
         # ───────── OPTIMIZATION
@@ -132,18 +158,32 @@ def _solve_single(subproblem: dict) -> dict:
             return {
                 "question": problem_text,
                 "final_answer": _answer(str(result)),
-                "source": "symbolic"
+                "explanation": (
+                    "Critical points are obtained by setting the first derivative to zero. "
+                    "The function value is evaluated at these points to find extrema."
+                ),
+                "source": {
+                    "answer": "symbolic_solver",
+                    "explanation": "symbolic_solver"
+                }
             }
 
     except Exception:
         pass
 
-    # 4️⃣ LLM FALLBACK
+    # ==========================================================
+    # 4️⃣ LLM FALLBACK (LAST RESORT)
+    # ==========================================================
     llm = solve_with_gemini(problem_text)
+
     return {
         "question": problem_text,
         "final_answer": llm["final_answer"],
-        "source": "llm"
+        "explanation": llm.get("steps"),
+        "source": {
+            "answer": "llm",
+            "explanation": "llm"
+        }
     }
 
 

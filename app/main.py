@@ -1,4 +1,4 @@
-# main.py (UPDATED)
+# main.py (UPDATED — MULTI-PROBLEM SAFE + EXPLAINER)
 
 try:
     from dotenv import load_dotenv
@@ -16,7 +16,6 @@ import re
 
 from app.schemas import ParseResponse, FeedbackRequest
 from app.agents.parser_agent import parse_problem
-from app.agents.intent_router import route_intent
 from app.agents.solver_agent import solve_problem
 from app.agents.gemini_explainer_agent import explain_with_gemini
 from app.utils.ocr import extract_text_from_image
@@ -25,6 +24,9 @@ from app.utils.confidence import assess_confidence
 from app.hitl.handler import hitl_required
 from app.memory.memory_store import store_interaction
 
+# ─────────────────────────────────────────────
+# App init
+# ─────────────────────────────────────────────
 app = FastAPI(title="Quantix Mathematician")
 
 # ─────────────────────────────────────────────
@@ -50,7 +52,7 @@ def serve_ui():
 
 
 # ─────────────────────────────────────────────
-# Parse input (FIXED)
+# Parse input
 # ─────────────────────────────────────────────
 @app.post("/parse", response_model=ParseResponse)
 async def parse_input(
@@ -67,7 +69,7 @@ async def parse_input(
     else:
         raw_text = ""
 
-    # 🔥 CRITICAL FIX — normalize input
+    # Normalize input aggressively (CRITICAL)
     raw_text = raw_text.replace("\r", " ")
     raw_text = raw_text.replace("\n", " ")
     raw_text = re.sub(r"\s+", " ", raw_text).strip()
@@ -85,7 +87,7 @@ async def parse_input(
 
 
 # ─────────────────────────────────────────────
-# Solve
+# Solve (MULTI-PROBLEM + EXPLAINER)
 # ─────────────────────────────────────────────
 @app.post("/solve")
 async def solve(parsed_problem: dict = Body(...)):
@@ -94,6 +96,24 @@ async def solve(parsed_problem: dict = Body(...)):
             raise ValueError("Invalid request body")
 
         solution = solve_problem(parsed_problem)
+
+        # ─────────────────────────────────────
+        # EXPLAINER (NON-DESTRUCTIVE)
+        # ─────────────────────────────────────
+        # Adds explanation ONLY if missing
+        # or appends clarification if already present
+        if os.getenv("GEMINI_API_KEY"):
+            for item in solution.get("results", []):
+                if not item.get("explanation"):
+                    try:
+                        item["explanation"] = explain_with_gemini(
+                            item.get("question", ""),
+                            item.get("final_answer", {}).get("text", "")
+                        )
+                        item["source"]["explanation"] = "gemini_explainer"
+                    except Exception:
+                        # Never fail solve because of explainer
+                        pass
 
         return JSONResponse(
             status_code=200,
@@ -108,7 +128,6 @@ async def solve(parsed_problem: dict = Body(...)):
                 "details": str(e)
             }
         )
-
 
 
 # ─────────────────────────────────────────────

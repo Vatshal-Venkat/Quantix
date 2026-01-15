@@ -71,17 +71,17 @@ async function solveProblem() {
 }
 
 // ─────────────────────────────────────────────
-// RENDER RESULTS (MULTI)
+// RENDER RESULTS (CORRECTLY SPLIT)
 // ─────────────────────────────────────────────
 function renderResults(data) {
   const answerTextEl = document.getElementById("answerText");
-  const latexEl = document.getElementById("answerLatex");
+  const answerLatexEl = document.getElementById("answerLatex");
   const ctxEl = document.getElementById("supportingContext");
   const sysInfoEl = document.getElementById("systemInfo");
 
-  // Reset
+  // Reset everything
   answerTextEl.innerHTML = "";
-  latexEl.innerHTML = "";
+  answerLatexEl.innerHTML = "";
   ctxEl.innerHTML = "";
   sysInfoEl.textContent = "";
 
@@ -92,35 +92,44 @@ function renderResults(data) {
 
   sysInfoEl.textContent = `Total problems solved: ${data.total_problems}`;
 
+  /* ======================================================
+     FINAL RESULT COLUMN → ANSWERS ONLY
+     ====================================================== */
   data.results.forEach((item, index) => {
-    // ───── Result Block
     const block = document.createElement("div");
     block.className = "result-block";
 
-    // Question
-    const q = document.createElement("p");
-    q.innerHTML = `<strong>Q${index + 1}:</strong> ${item.question}`;
-    block.appendChild(q);
+    block.innerHTML = `
+      <p><strong>Q${index + 1}:</strong> ${item.question}</p>
+      <p><strong>Answer:</strong> ${item.final_answer.text}</p>
+      <p class="source">Source: ${item.source?.answer || item.source}</p>
+    `;
 
-    // Answer (Text)
-    const a = document.createElement("p");
-    a.innerHTML = `<strong>Answer:</strong> ${item.final_answer.text}`;
-    block.appendChild(a);
-
-    // Answer (LaTeX)
     if (item.final_answer.latex) {
       const latexDiv = document.createElement("div");
       latexDiv.innerHTML = `$$${item.final_answer.latex}$$`;
       block.appendChild(latexDiv);
     }
 
-    // Source
-    const src = document.createElement("p");
-    src.className = "source";
-    src.textContent = `Source: ${item.source}`;
-    block.appendChild(src);
+    answerTextEl.appendChild(block);
+  });
 
-    ctxEl.appendChild(block);
+  /* ======================================================
+     SUPPORTING CONTEXT → EXPLANATIONS ONLY
+     ====================================================== */
+  data.results.forEach((item, index) => {
+    if (!item.explanation) return;
+
+    const expBlock = document.createElement("div");
+    expBlock.className = "result-block";
+
+    expBlock.innerHTML = `
+      <p><strong>Q${index + 1} – Explanation:</strong></p>
+      <p>${item.explanation}</p>
+      <p class="source">Source: ${item.source?.explanation || item.source}</p>
+    `;
+
+    ctxEl.appendChild(expBlock);
   });
 
   // Re-render MathJax
