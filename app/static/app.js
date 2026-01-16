@@ -1,37 +1,57 @@
 let parsedProblem = null;
 let solvedResult = null;
 
+/* =========================================================
+   INPUT MODE TOGGLING
+   ========================================================= */
 document.getElementById("inputType").addEventListener("change", (e) => {
   const type = e.target.value;
-  document.getElementById("textInput").style.display =
-    type === "text" ? "block" : "none";
-  document.getElementById("fileInput").style.display =
-    type !== "text" ? "block" : "none";
+
+  const textInput = document.getElementById("textInput");
+  const fileInput = document.getElementById("fileInput");
+  const audioInput = document.getElementById("audioInput");
+
+  textInput.style.display = type === "text" ? "block" : "none";
+  fileInput.style.display = type === "image" ? "block" : "none";
+  audioInput.style.display = type === "audio" ? "block" : "none";
 });
 
-// ─────────────────────────────────────────────
-// PARSE INPUT
-// ─────────────────────────────────────────────
+/* =========================================================
+   PARSE INPUT
+   ========================================================= */
 async function parseInput() {
   const inputType = document.getElementById("inputType").value;
-
-  const text = document
-    .getElementById("textInput")
-    .value
-    .replace(/\n+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-
-  const fileInput = document.getElementById("fileInput");
-
   const formData = new FormData();
   formData.append("input_type", inputType);
 
   if (inputType === "text") {
+    const text = document
+      .getElementById("textInput")
+      .value.replace(/\n+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!text) {
+      alert("Enter a problem");
+      return;
+    }
+
     formData.append("text", text);
-  } else {
+  }
+
+  else if (inputType === "audio") {
+    const audioText = document.getElementById("audioText").value.trim();
+    if (!audioText) {
+      alert("Speak a problem first");
+      return;
+    }
+    formData.append("text", audioText);
+  }
+
+  else {
+    const fileInput = document.getElementById("fileInput");
     if (!fileInput.files.length) {
-      alert("Upload a file");
+      alert("Upload an image");
       return;
     }
     formData.append("file", fileInput.files[0]);
@@ -43,15 +63,15 @@ async function parseInput() {
   });
 
   const data = await res.json();
-
   parsedProblem = data.parsed_problem;
+
   document.getElementById("parsedOutput").textContent =
     JSON.stringify(parsedProblem, null, 2);
 }
 
-// ─────────────────────────────────────────────
-// SOLVE (MULTI-PROBLEM)
-// ─────────────────────────────────────────────
+/* =========================================================
+   SOLVE
+   ========================================================= */
 async function solveProblem() {
   if (!parsedProblem) {
     alert("Parse first");
@@ -64,22 +84,24 @@ async function solveProblem() {
     body: JSON.stringify(parsedProblem)
   });
 
-  const data = await res.json();
-  solvedResult = data;
-
-  renderResults(data);
+  solvedResult = await res.json();
+  renderResults(solvedResult);
 }
 
-// ─────────────────────────────────────────────
-// RENDER RESULTS (CORRECTLY SPLIT)
-// ─────────────────────────────────────────────
+/* Audio solve shortcut */
+function solveFromAudio() {
+  parseInput().then(solveProblem);
+}
+
+/* =========================================================
+   RENDER RESULTS
+   ========================================================= */
 function renderResults(data) {
   const answerTextEl = document.getElementById("answerText");
   const answerLatexEl = document.getElementById("answerLatex");
   const ctxEl = document.getElementById("supportingContext");
   const sysInfoEl = document.getElementById("systemInfo");
 
-  // Reset everything
   answerTextEl.innerHTML = "";
   answerLatexEl.innerHTML = "";
   ctxEl.innerHTML = "";
@@ -92,9 +114,6 @@ function renderResults(data) {
 
   sysInfoEl.textContent = `Total problems solved: ${data.total_problems}`;
 
-  /* ======================================================
-     FINAL RESULT COLUMN → ANSWERS ONLY
-     ====================================================== */
   data.results.forEach((item, index) => {
     const block = document.createElement("div");
     block.className = "result-block";
@@ -114,9 +133,6 @@ function renderResults(data) {
     answerTextEl.appendChild(block);
   });
 
-  /* ======================================================
-     SUPPORTING CONTEXT → EXPLANATIONS ONLY
-     ====================================================== */
   data.results.forEach((item, index) => {
     if (!item.explanation) return;
 
@@ -132,15 +148,14 @@ function renderResults(data) {
     ctxEl.appendChild(expBlock);
   });
 
-  // Re-render MathJax
   if (window.MathJax) {
     MathJax.typesetPromise();
   }
 }
 
-// ─────────────────────────────────────────────
-// FEEDBACK
-// ─────────────────────────────────────────────
+/* =========================================================
+   FEEDBACK
+   ========================================================= */
 async function sendFeedback(type) {
   if (!parsedProblem || !solvedResult) {
     alert("Nothing to submit");
@@ -159,3 +174,163 @@ async function sendFeedback(type) {
 
   alert("Feedback saved");
 }
+
+/* =========================================================
+   SPEECH TO TEXT (AUDIO MODE)
+   ========================================================= */
+let recognition;
+let listening = false;
+
+const audioText = document.getElementById("audioText");
+const micCircle = document.querySelector(".mic-circle");
+
+/* --------- SPOKEN MATH → SYMBOLS --------- */
+function normalizeMathSpeech(text) {
+  let t = text.toLowerCase();
+
+  let isDiff = false;
+  let isIntegrate = false;
+  let isLimit = false;
+  let isSimplify = false;
+  let isFactor = false;
+  let isExpand = false;
+
+  if (t.includes("derivative") || t.includes("differentiate")) {
+    isDiff = true;
+    t = t.replace(/derivative of|derivative|differentiate/gi, "");
+  }
+
+  if (t.includes("integrate") || t.includes("integral")) {
+    isIntegrate = true;
+    t = t.replace(/integrate|integral of|integral/gi, "");
+  }
+
+  if (t.includes("limit")) {
+    isLimit = true;
+    t = t.replace(/limit of|limit/gi, "");
+  }
+
+  if (t.includes("simplify")) {
+    isSimplify = true;
+    t = t.replace(/simplify/gi, "");
+  }
+
+  if (t.includes("factor")) {
+    isFactor = true;
+    t = t.replace(/factor/gi, "");
+  }
+
+  if (t.includes("expand")) {
+    isExpand = true;
+    t = t.replace(/expand/gi, "");
+  }
+
+  const replacements = {
+    plus: "+",
+    minus: "-",
+    times: "*",
+    into: "*",
+    "divide by": "/",
+    "divided by": "/",
+    by: "/",
+    equals: "=",
+    "equal to": "=",
+    square: "**2",
+    cube: "**3",
+    power: "**",
+    "open bracket": "(",
+    "close bracket": ")",
+    "open parenthesis": "(",
+    "close parenthesis": ")",
+    sin: "sin",
+    sine: "sin",
+    cos: "cos",
+    cosine: "cos",
+    tan: "tan",
+    tangent: "tan",
+    log: "log",
+    "natural log": "ln",
+    "square root": "sqrt",
+    zero: "0",
+    one: "1",
+    two: "2",
+    three: "3",
+    four: "4",
+    five: "5",
+  };
+
+  for (const key in replacements) {
+    const regex = new RegExp(`\\b${key}\\b`, "g");
+    t = t.replace(regex, replacements[key]);
+  }
+
+  t = t.replace(/(\d)([a-z])/g, "$1*$2");
+  t = t.replace(/([a-z])(\d)/g, "$1*$2");
+  t = t.replace(/([a-z])\s+([a-z])/g, "$1*$2");
+  t = t.replace(/\s+/g, "");
+
+  if (isDiff) return `diff(${t})`;
+  if (isIntegrate) return `integrate(${t})`;
+  if (isSimplify) return `simplify(${t})`;
+  if (isFactor) return `factor(${t})`;
+  if (isExpand) return `expand(${t})`;
+
+  return t;
+}
+
+/* --------- START / STOP MIC --------- */
+function startVoice() {
+  if (!("webkitSpeechRecognition" in window)) {
+    alert("Speech recognition not supported");
+    return;
+  }
+
+  if (!recognition) {
+    recognition = new webkitSpeechRecognition();
+    recognition.lang = "en-US";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event) => {
+      let transcript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      audioText.value = normalizeMathSpeech(transcript);
+    };
+
+    recognition.onend = () => {
+      if (listening) recognition.start();
+    };
+  }
+
+  if (!listening) {
+    listening = true;
+    micCircle.classList.add("listening");
+    recognition.start();
+  } else {
+    stopVoice();
+  }
+}
+
+function stopVoice() {
+  listening = false;
+  micCircle.classList.remove("listening");
+  recognition.stop();
+}
+
+function resetAudio() {
+  audioText.value = "";
+  if (recognition && listening) recognition.stop();
+  listening = false;
+  micCircle.classList.remove("listening");
+}
+
+/* =========================================================
+   FORCE CORRECT UI ON INITIAL LOAD (SAFE FIX)
+   ========================================================= */
+window.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("inputType").dispatchEvent(
+    new Event("change")
+  );
+});

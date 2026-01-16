@@ -33,12 +33,39 @@
       </select>
     </div>
 
+    <!-- TEXT INPUT -->
     <textarea
       id="textInput"
       placeholder="Example: find the gradient of f(x,y) = x^2 + y^2"
     ></textarea>
 
+    <!-- IMAGE INPUT -->
     <input type="file" id="fileInput" style="display:none" />
+
+    <!-- AUDIO INPUT (NO hidden CLASS) -->
+    <div id="audioInput" class="audio-wrapper">
+      <p class="hint">Tap the mic and speak your math problem</p>
+
+      <div class="audio-controls">
+        <div class="audio-spacer"></div>
+
+        <div class="mic-circle" onclick="startVoice()">
+          <div class="mic-icon"></div>
+        </div>
+
+        <button class="new-input-btn" onclick="resetAudio()">
+          New Input
+        </button>
+      </div>
+
+      <textarea
+        id="audioText"
+        placeholder="Your spoken input will appear here..."
+        readonly
+      ></textarea>
+
+      <button onclick="solveFromAudio()">Solve</button>
+    </div>
 
     <div class="controls">
       <button onclick="parseInput()">Analyze Input</button>
@@ -59,38 +86,28 @@
   <!-- SOLVER GRID -->
   <div class="solver-grid">
 
-    <!-- LEFT -->
     <div class="solver-primary">
-
-      <!-- FINAL ANSWER -->
       <div class="card">
         <div class="section-title">Final Result</div>
         <div id="answerText"></div>
         <div id="answerLatex"></div>
       </div>
-
     </div>
 
-    <!-- RIGHT -->
     <div class="solver-secondary">
-
-      <!-- EXECUTION METADATA -->
       <div class="card">
         <div class="section-title">Execution Metadata</div>
         <div id="systemInfo"></div>
       </div>
-
     </div>
 
   </div>
 
-  <!-- SUPPORTING CONTEXT (FULL WIDTH) -->
   <div class="card">
     <div class="section-title">Supporting Context</div>
     <div id="supportingContext"></div>
   </div>
 
-  <!-- FEEDBACK -->
   <div class="feedback">
     <button onclick="sendFeedback('correct')">✔ Mark Correct</button>
     <button onclick="sendFeedback('incorrect')">✖ Flag Issue</button>

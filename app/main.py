@@ -1,4 +1,4 @@
-# main.py (UPDATED — MULTI-PROBLEM SAFE + EXPLAINER)
+# main.py (UPDATED — TEXT / IMAGE / AUDIO SAFE + EXPLAINER)
 
 try:
     from dotenv import load_dotenv
@@ -18,9 +18,11 @@ from app.schemas import ParseResponse, FeedbackRequest
 from app.agents.parser_agent import parse_problem
 from app.agents.solver_agent import solve_problem
 from app.agents.gemini_explainer_agent import explain_with_gemini
+
 from app.utils.ocr import extract_text_from_image
 from app.utils.asr import transcribe_audio
 from app.utils.confidence import assess_confidence
+
 from app.hitl.handler import hitl_required
 from app.memory.memory_store import store_interaction
 
@@ -52,7 +54,7 @@ def serve_ui():
 
 
 # ─────────────────────────────────────────────
-# Parse input
+# Parse input (TEXT / IMAGE / AUDIO)
 # ─────────────────────────────────────────────
 @app.post("/parse", response_model=ParseResponse)
 async def parse_input(
@@ -60,20 +62,43 @@ async def parse_input(
     text: str = Form(None),
     file: UploadFile = File(None)
 ):
+    """
+    AUDIO HANDLING RULES:
+    - If frontend sends audio as TEXT → use directly
+    - If audio FILE is sent → run ASR
+    """
+
+    raw_text = ""
+
     if input_type == "text":
         raw_text = text or ""
+
     elif input_type == "image" and file:
         raw_text = extract_text_from_image(await file.read())
-    elif input_type == "audio" and file:
-        raw_text = transcribe_audio(await file.read())
+
+    elif input_type == "audio":
+        if text:
+            # ✅ Frontend Web Speech API path
+            raw_text = text
+        elif file:
+            # ✅ Future-proof audio file ASR
+            raw_text = transcribe_audio(await file.read())
+        else:
+            raw_text = ""
+
     else:
         raw_text = ""
 
-    # Normalize input aggressively (CRITICAL)
+    # ─────────────────────────────────────────
+    # Aggressive normalization (CRITICAL)
+    # ─────────────────────────────────────────
     raw_text = raw_text.replace("\r", " ")
     raw_text = raw_text.replace("\n", " ")
     raw_text = re.sub(r"\s+", " ", raw_text).strip()
 
+    # ─────────────────────────────────────────
+    # Confidence + HITL
+    # ─────────────────────────────────────────
     confidence = assess_confidence(raw_text)
     parsed = parse_problem(raw_text)
     needs_hitl = hitl_required(confidence, parsed)
@@ -87,7 +112,7 @@ async def parse_input(
 
 
 # ─────────────────────────────────────────────
-# Solve (MULTI-PROBLEM + EXPLAINER)
+# Solve (MULTI-PROBLEM SAFE + EXPLAINER)
 # ─────────────────────────────────────────────
 @app.post("/solve")
 async def solve(parsed_problem: dict = Body(...)):
@@ -100,8 +125,6 @@ async def solve(parsed_problem: dict = Body(...)):
         # ─────────────────────────────────────
         # EXPLAINER (NON-DESTRUCTIVE)
         # ─────────────────────────────────────
-        # Adds explanation ONLY if missing
-        # or appends clarification if already present
         if os.getenv("GEMINI_API_KEY"):
             for item in solution.get("results", []):
                 if not item.get("explanation"):
@@ -110,6 +133,7 @@ async def solve(parsed_problem: dict = Body(...)):
                             item.get("question", ""),
                             item.get("final_answer", {}).get("text", "")
                         )
+                        item.setdefault("source", {})
                         item["source"]["explanation"] = "gemini_explainer"
                     except Exception:
                         # Never fail solve because of explainer
